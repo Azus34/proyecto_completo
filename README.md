@@ -68,23 +68,10 @@ npm test -- --coverage --verbose
     GET /api/productos/:id
       ✓ debe retornar un producto existente con status 200
       ✓ debe retornar 404 para producto no existente
-    POST /api/productos
-      ✓ debe crear un nuevo producto con status 201
-      ✓ debe retornar 400 si falta el nombre del producto
-      ✓ debe retornar 400 si el precio es negativo
-    PUT /api/productos/:id
-      ✓ debe actualizar un producto existente con status 200
-      ✓ debe retornar 404 al actualizar producto inexistente
-    DELETE /api/productos/:id
-      ✓ debe eliminar un producto existente con status 200
-      ✓ debe retornar 404 al eliminar producto inexistente
-    GET /
-      ✓ debe retornar información de la API
-    Rutas no existentes
-      ✓ debe retornar 404 para rutas no definidas
+    
 
 Test Suites: 1 passed, 1 total
-Tests:       14 passed, 14 total
+Tests:       3 passed, 3 total
 ```
 
 ---
@@ -96,35 +83,12 @@ Tests:       14 passed, 14 total
 | GET | `/` | Información de la API |
 | GET | `/health` | Estado de salud del servidor |
 | GET | `/api/productos` | Obtener todos los productos |
-| GET | `/api/productos/:id` | Obtener producto por ID |
-| POST | `/api/productos` | Crear nuevo producto |
-| PUT | `/api/productos/:id` | Actualizar producto |
-| DELETE | `/api/productos/:id` | Eliminar producto |
 
 ### Ejemplos de Uso
 
 #### Obtener todos los productos
 ```bash
 curl http://localhost/api/productos
-```
-
-#### Crear un nuevo producto
-```bash
-curl -X POST http://localhost/api/productos \
-  -H "Content-Type: application/json" \
-  -d '{"nombre": "Nuevo Producto", "precio": 999, "stock": 10}'
-```
-
-#### Actualizar un producto
-```bash
-curl -X PUT http://localhost/api/productos/1 \
-  -H "Content-Type: application/json" \
-  -d '{"precio": 1500}'
-```
-
-#### Eliminar un producto
-```bash
-curl -X DELETE http://localhost/api/productos/1
 ```
 
 
