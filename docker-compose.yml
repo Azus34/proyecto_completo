@@ -1,0 +1,57 @@
+# ==========================================
+# Docker Compose - Arquitectura de Despliegue
+# ==========================================
+# Este archivo define la infraestructura completa:
+# - API Node.js (backend)
+# - Nginx (proxy inverso)
+# ==========================================
+
+version: '3.8'
+
+services:
+  # ==================== API Backend ====================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-productos
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    expose:
+      - "3000"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==================== Nginx Proxy Inverso ====================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - api
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ==================== Redes ====================
+networks:
+  app-network:
+    driver: bridge
+    name: arquitectura-network

@@ -1,0 +1,30 @@
+{
+  "name": "proyecto-arquitectura-despliegue",
+  "version": "1.0.0",
+  "description": "Proyecto de evaluación: Arquitectura de Despliegue, Pruebas y Monitoreo",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest --coverage --detectOpenHandles --forceExit"
+  },
+  "keywords": [
+    "docker",
+    "nginx",
+    "supertest",
+    "express",
+    "api"
+  ],
+  "author": "Equipo de Desarrollo",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3"
+  }
+}
