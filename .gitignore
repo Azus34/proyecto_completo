@@ -5,4 +5,4 @@ coverage/
 .env
 .env.local
 .env.*.local
-REPORTE.MD
+REPORTE.md

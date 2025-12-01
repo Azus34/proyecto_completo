@@ -1,36 +1,60 @@
 # ==========================================
-# Docker Compose - Arquitectura de Despliegue
+# Docker Compose - Blue-Green Deployment
 # ==========================================
-# Este archivo define la infraestructura completa:
-# - API Node.js (backend)
-# - Nginx (proxy inverso)
+# Estrategia de despliegue con Zero Downtime
+# - Entorno BLUE (producción actual)
+# - Entorno GREEN (nueva versión)
+# - Nginx como Load Balancer/Switch
 # ==========================================
 
 version: '3.8'
 
 services:
-  # ==================== API Backend ====================
-  api:
+  # ==================== API BLUE (Producción Actual) ====================
+  api-blue:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: api-productos
+    container_name: api-blue
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - APP_VERSION=BLUE
     expose:
       - "3000"
     networks:
       - app-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 10s
 
-  # ==================== Nginx Proxy Inverso ====================
+  # ==================== API GREEN (Nueva Versión) ====================
+  api-green:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-green
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - APP_VERSION=GREEN
+    expose:
+      - "3000"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ==================== Nginx Load Balancer / Switch ====================
   nginx:
     image: nginx:alpine
     container_name: nginx-proxy
@@ -41,17 +65,13 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
-      - api
+      - api-blue
+      - api-green
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 # ==================== Redes ====================
 networks:
   app-network:
     driver: bridge
-    name: arquitectura-network
+    name: bluegreen-network
