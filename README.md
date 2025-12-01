@@ -15,7 +15,7 @@
 
 ```bash
 # 1. Clonar el repositorio
-git clone <url-del-repositorio>
+git clone https://github.com/Azus34/proyecto_completo.git
 cd proyecto_completo
 
 # 2. Construir y levantar los contenedores
