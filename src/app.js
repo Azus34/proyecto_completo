@@ -26,9 +26,7 @@ app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
         message: 'Servidor funcionando correctamente',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        version: process.env.APP_VERSION || 'DEFAULT'
+        timestamp: new Date().toISOString()
     });
 });
 
