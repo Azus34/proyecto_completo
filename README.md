@@ -91,32 +91,6 @@ Tests:       3 passed, 3 total
 curl http://localhost/api/productos
 ```
 
-## Switcheo
-```bash
-.\scripts\switch.ps1 
-```
-
-### Opciones de Switcheo
- ```     
-==========================================
-   Blue-Green Deployment Switch
-==========================================
-
-Estado actual:
-
-   BLUE:  Healthy
-   GREEN: Healthy
-
-   Activo: BLUE
-
-  Seleccione una opcion (1 a 4)
-
-  1) Cambiar a BLUE
-  2) Cambiar a GREEN
-  3) Solo verificar estado
-  4) Salir
-```
-
 ##  Comandos Docker Útiles
 
 ```bash
