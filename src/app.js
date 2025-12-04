@@ -21,12 +21,13 @@ let nextId = 4;
 
 // ==================== RUTAS ====================
 
-// Ruta de salud del servidor
+// Ruta de salud del servidor (con versión para Blue-Green)
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
         message: 'Servidor funcionando correctamente',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: process.env.APP_VERSION || 'DEFAULT'
     });
 });
 

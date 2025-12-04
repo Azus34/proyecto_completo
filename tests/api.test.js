@@ -22,6 +22,7 @@ describe('API de Productos - Pruebas de Integración', () => {
             expect(response.body).toHaveProperty('status', 'OK');
             expect(response.body).toHaveProperty('message', 'Servidor funcionando correctamente');
             expect(response.body).toHaveProperty('timestamp');
+            expect(response.body).toHaveProperty('version');
         });
     });
 

@@ -1,16 +1,21 @@
 # ==========================================
 # GitHub Actions - CI/CD Pipeline
 # ==========================================
-# Ejecuta tests y despliega a VPS
+# Blue-Green Deployment con Zero Downtime
 # ==========================================
 
-name: CI/CD Pipeline
+name: CI/CD Pipeline - Blue-Green
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+env:
+  VPS_HOST: 167.172.198.138
+  VPS_USER: deployer
+  PROJECT_PATH: /var/www/proyecto_completo
 
 jobs:
   # ==================== JOB 1: Tests ====================
@@ -34,11 +39,11 @@ jobs:
       - name: 🧪 Ejecutar tests
         run: npm test
 
-  # ==================== JOB 2: Deploy ====================
+  # ==================== JOB 2: Blue-Green Deploy ====================
   deploy:
-    name: 🚀 Deploy a VPS
+    name: 🚀 Blue-Green Deploy
     runs-on: ubuntu-latest
-    needs: test  # Solo si los tests pasan
+    needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -53,30 +58,122 @@ jobs:
       - name: 🔒 Agregar host conocido
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H 167.172.198.138 >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: 🚀 Deploy a VPS
+      - name: 🔍 Detectar entorno activo
+        id: detect
         run: |
-          ssh deployer@167.172.198.138 << 'ENDSSH'
-            # Ir al directorio del proyecto
-            cd /var/www/proyecto_completo || mkdir -p /var/www/proyecto_completo && cd /var/www/proyecto_completo
+          ACTIVE=$(ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "curl -s http://localhost:3001/health 2>/dev/null | grep -o 'BLUE' || echo 'NONE'")
+          if [ "$ACTIVE" = "BLUE" ]; then
+            echo "current=BLUE" >> $GITHUB_OUTPUT
+            echo "target=GREEN" >> $GITHUB_OUTPUT
+            echo "target_port=3002" >> $GITHUB_OUTPUT
+            echo "current_port=3001" >> $GITHUB_OUTPUT
+          else
+            echo "current=GREEN" >> $GITHUB_OUTPUT
+            echo "target=BLUE" >> $GITHUB_OUTPUT
+            echo "target_port=3001" >> $GITHUB_OUTPUT
+            echo "current_port=3002" >> $GITHUB_OUTPUT
+          fi
+          echo "🔵 Entorno actual: $ACTIVE"
+
+      - name: 📦 Desplegar nueva versión en ${{ steps.detect.outputs.target }}
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'ENDSSH'
+            cd ${{ env.PROJECT_PATH }} || mkdir -p ${{ env.PROJECT_PATH }} && cd ${{ env.PROJECT_PATH }}
             
-            # Clonar o actualizar repositorio
+            # Actualizar código
             if [ -d ".git" ]; then
               git pull origin main
             else
               git clone https://github.com/${{ github.repository }}.git .
             fi
             
-            # Reconstruir y reiniciar contenedores
-            docker-compose down
+            # Construir y levantar ambos entornos
             docker-compose up -d --build
             
-            # Verificar estado
-            docker-compose ps
-            
-            echo "✅ Deploy completado exitosamente"
+            echo "✅ Contenedores desplegados"
           ENDSSH
+
+      - name: ⏳ Esperar health check de ${{ steps.detect.outputs.target }}
+        run: |
+          echo "Esperando que ${{ steps.detect.outputs.target }} esté healthy..."
+          for i in {1..30}; do
+            HEALTH=$(ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "curl -s http://localhost:${{ steps.detect.outputs.target_port }}/health 2>/dev/null || echo 'waiting'")
+            if echo "$HEALTH" | grep -q "OK"; then
+              echo "✅ ${{ steps.detect.outputs.target }} está healthy!"
+              exit 0
+            fi
+            echo "Intento $i/30..."
+            sleep 2
+          done
+          echo "❌ Health check falló"
+          exit 1
+
+      - name: 🔄 Switch de tráfico a ${{ steps.detect.outputs.target }}
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << ENDSSH
+            # Actualizar Nginx para apuntar al nuevo entorno
+            sudo tee /etc/nginx/conf.d/service.conf << 'EOF'
+          # ==========================================
+          # Blue-Green Deployment - Nginx Config
+          # Entorno activo: ${{ steps.detect.outputs.target }}
+          # ==========================================
+
+          upstream active_backend {
+              server 127.0.0.1:${{ steps.detect.outputs.target_port }} max_fails=3 fail_timeout=30s;
+              keepalive 32;
+          }
+
+          server {
+              listen 80;
+              listen [::]:80;
+              server_name ${{ env.VPS_HOST }};
+
+              location /health {
+                  proxy_pass http://active_backend;
+              }
+
+              location / {
+                  proxy_pass http://active_backend;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+              }
+          }
+          EOF
+            
+            # Verificar y recargar Nginx
+            sudo nginx -t && sudo systemctl reload nginx
+            
+            echo "✅ Tráfico cambiado a ${{ steps.detect.outputs.target }}"
+          ENDSSH
+
+      - name: ✅ Verificar deployment
+        run: |
+          sleep 3
+          RESPONSE=$(curl -s http://${{ env.VPS_HOST }}/health)
+          echo "Respuesta: $RESPONSE"
+          if echo "$RESPONSE" | grep -q "OK"; then
+            echo "✅ Deployment exitoso!"
+            echo "🔵 Entorno anterior: ${{ steps.detect.outputs.current }}"
+            echo "🟢 Entorno activo: ${{ steps.detect.outputs.target }}"
+          else
+            echo "❌ Verificación falló"
+            exit 1
+          fi
+
+      - name: 📊 Resumen del Deploy
+        run: |
+          echo "============================================"
+          echo "🎉 BLUE-GREEN DEPLOYMENT COMPLETADO"
+          echo "============================================"
+          echo "📍 Servidor: http://${{ env.VPS_HOST }}"
+          echo "🔵 BLUE: http://${{ env.VPS_HOST }}:3001"
+          echo "🟢 GREEN: http://${{ env.VPS_HOST }}:3002"
+          echo "✅ Activo: ${{ steps.detect.outputs.target }}"
+          echo "============================================"
 
       - name: ✅ Verificar deployment
         run: |

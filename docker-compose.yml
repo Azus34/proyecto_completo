@@ -1,22 +1,44 @@
 # ==========================================
-# Docker Compose - Arquitectura Simple
+# Docker Compose - Blue-Green Deployment
 # ==========================================
-# API expuesta para Nginx del sistema
+# Dos entornos: BLUE (3001) y GREEN (3002)
+# Zero Downtime Deployment
 # ==========================================
 
 version: '3.8'
 
 services:
-  # ==================== API Node.js ====================
-  api:
+  # ==================== API BLUE ====================
+  api-blue:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: api-productos
+    container_name: api-blue
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - APP_VERSION=BLUE
+    ports:
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ==================== API GREEN ====================
+  api-green:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-green
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - APP_VERSION=GREEN
     ports:
       - "3002:3000"
     healthcheck:
