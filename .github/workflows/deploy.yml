@@ -63,19 +63,21 @@ jobs:
       - name: 🔍 Detectar entorno activo
         id: detect
         run: |
-          ACTIVE=$(ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "curl -s http://localhost:3001/health 2>/dev/null | grep -o 'BLUE' || echo 'NONE'")
-          if [ "$ACTIVE" = "BLUE" ]; then
-            echo "current=BLUE" >> $GITHUB_OUTPUT
-            echo "target=GREEN" >> $GITHUB_OUTPUT
-            echo "target_port=3002" >> $GITHUB_OUTPUT
-            echo "current_port=3001" >> $GITHUB_OUTPUT
-          else
+          # Verificar cuál entorno está activo en el puerto 80 (Nginx)
+          ACTIVE=$(ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "curl -s http://localhost/health 2>/dev/null | grep -oE 'BLUE|GREEN' || echo 'NONE'")
+          echo "Entorno activo en puerto 80: $ACTIVE"
+          if [ "$ACTIVE" = "GREEN" ]; then
             echo "current=GREEN" >> $GITHUB_OUTPUT
             echo "target=BLUE" >> $GITHUB_OUTPUT
             echo "target_port=3001" >> $GITHUB_OUTPUT
             echo "current_port=3002" >> $GITHUB_OUTPUT
+          else
+            echo "current=BLUE" >> $GITHUB_OUTPUT
+            echo "target=GREEN" >> $GITHUB_OUTPUT
+            echo "target_port=3002" >> $GITHUB_OUTPUT
+            echo "current_port=3001" >> $GITHUB_OUTPUT
           fi
-          echo "🔵 Entorno actual: $ACTIVE"
+          echo "🔵 Entorno actual: $ACTIVE → Cambiaremos a: $([ "$ACTIVE" = "GREEN" ] && echo "BLUE" || echo "GREEN")"
 
       - name: 📦 Desplegar nueva versión en ${{ steps.detect.outputs.target }}
         run: |
